@@ -1,10 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:todo_app/add_screen.dart';
-import 'package:todo_app/list.model.dart';
 
 void main() {
   runApp(MyApp());
@@ -31,45 +27,73 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<Todo> _todos = [];
+  TextEditingController _textFieldController = TextEditingController();
+  List<String> _todos = [];
+  String _todo = '';
 
   @override
   void initState() {
     super.initState();
+
     syncDataWithProvider();
   }
 
   Future syncDataWithProvider() async {
-    print('syncDataWithProvider');
-
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    // ①読み出し
     var result = prefs.getStringList('listData');
-
-    print('result:$result');
-
-    // 読み出し確認
     if (result != null) {
-      // ②デコード→③MapオブジェクトをClockModelに代入→④リストに変換
       setState(() {
-        _todos = result.map((f) => Todo.fromJson(json.decode(f))).toList();
+        _todos = result;
       });
-    } else {
-      // 必要に応じて初期化
     }
   }
 
-  Future _deleteItem(Todo todo) async {
-    _todos.remove(todo);
-    // ①Map型変換→②Json形式にエンコード→③リスト化
-    List<String> myLists = _todos.map((f) => json.encode(f.toJson())).toList();
-
+  Future _updateItem(List<String> todos) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-
     // ④保存
-    await prefs.setStringList('listData', myLists);
+    await prefs.setStringList('listData', todos);
+  }
 
-    print('updateSharedPrefrences: $myLists');
+  Future<void> _displayTextInputDialog(BuildContext context) async {
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(builder: (context, setState) {
+            return AlertDialog(
+              title: Text('add list'),
+              content: TextField(
+                //自動的にキーボードを開く
+                autofocus: true,
+                onChanged: (value) {
+                  setState(() {
+                    _todo = value;
+                  });
+                },
+                controller: _textFieldController,
+                decoration: InputDecoration(hintText: "What are you up to?"),
+              ),
+              actions: <Widget>[
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    primary: Colors.green,
+                    onPrimary: Colors.black,
+                  ),
+                  child: Text('Add'),
+                  onPressed: _todo.isEmpty
+                      ? null
+                      : () {
+                          setState(() {
+                            _todos.add(_todo);
+                            _updateItem(_todos);
+                            _textFieldController.clear();
+                            Navigator.pop(context);
+                          });
+                        },
+                ),
+              ],
+            );
+          });
+        });
   }
 
   @override
@@ -78,7 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
       backgroundColor: Colors.blue,
       appBar: AppBar(
         title: Text(
-          'トゥードゥーリストぅ',
+          'ToDoList',
           style: TextStyle(
             fontSize: 20.0,
             fontWeight: FontWeight.bold,
@@ -117,73 +141,39 @@ class _MyHomePageState extends State<MyHomePage> {
                         icon: Icons.delete_outline,
                         onTap: () {
                           setState(() {
-                            _deleteItem(_todos[index]);
+                            _todos.remove(_todos[index]);
+                            _updateItem(_todos);
                           });
                         },
                       ),
                     ],
-                    child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _todos[index] = Todo(
-                                name: _todos[index].name,
-                                check: !_todos[index].check!);
-                          });
-                        },
-                        child: Container(
-                          margin: EdgeInsets.only(right: 20.0),
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 20.0, vertical: 10.0),
-                          decoration: BoxDecoration(
-                            color: _todos[index].check!
-                                ? Colors.orange
-                                : Colors.blue,
-                            borderRadius: BorderRadius.only(
-                              topRight: Radius.circular(20.0),
-                              bottomRight: Radius.circular(20.0),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            mainAxisSize: MainAxisSize.max,
-                            children: <Widget>[
-                              Text(
-                                _todos[index].name!,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15.0,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Checkbox(
-                                value: _todos[index].check,
-
-                                ///valueは押した時に変更された値
-                                onChanged: (value) {
-                                  setState(() {
-                                    _todos[index] = Todo(
-                                      name: _todos[index].name,
-                                      check: value,
-                                    );
-                                  });
-                                },
-                              )
-                              ////アイコン/////
-                            ],
-                          ),
-                        ))),
+                    child: Container(
+                      width: MediaQuery.of(context).size.width,
+                      margin: EdgeInsets.only(right: 20.0),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 20.0, vertical: 10.0),
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(20.0),
+                          bottomRight: Radius.circular(20.0),
+                        ),
+                      ),
+                      child: Text(
+                        _todos[index],
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20.0,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )),
               );
             }),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AddScreen(
-                  todoList: _todos,
-                ),
-              )).then((value) => syncDataWithProvider());
+          _displayTextInputDialog(context);
         },
         tooltip: 'Increment',
         child: Icon(Icons.add),
