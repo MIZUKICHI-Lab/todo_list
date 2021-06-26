@@ -106,7 +106,7 @@ class _AddScreenState extends State<AddScreen> {
                   ),
                   const SizedBox(height: 12.0),
                   SizedBox(
-                    width: 150,
+                    width: 140,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         primary: _istexted ? Colors.orange : Colors.black,
